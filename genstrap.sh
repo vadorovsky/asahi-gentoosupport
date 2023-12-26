@@ -34,7 +34,7 @@ echo
 cleanup
 
 echo "Installing dependencies..."
-pacman -S --needed squashfs-tools dracut cpio parted
+dnf install -y squashfs-tools dracut-asahi dracut-tools cpio parted bsdtar
 
 echo "Extracting squashfs..."
 bsdtar -xf install.iso --include image.squashfs
@@ -85,24 +85,29 @@ cp new.squashfs overlay/squash.img
 echo "root=live:/squash.img ro console=tty0 init=/sbin/init" \
      > overlay/etc/cmdline.d/01-default.conf
 
-if [[ -e /etc/dracut.conf.d/ ]]; then
-    cp resources/dracut.conf /etc/dracut.conf.d/10-asahi.conf
-else
-    mkdir /etc/dracut.conf.d/
-    cp resources/dracut.conf /etc/dracut.conf.d/10-asahi.conf
+if [[ ! -e /usr/lib/dracut/dracut.conf.d/10-asahi.conf ]]; then
+    if [[ -e /etc/dracut.conf.d/ ]]; then
+        cp resources/dracut.conf /etc/dracut.conf.d/10-asahi.conf
+    else
+        mkdir /etc/dracut.conf.d/
+        cp resources/dracut.conf /etc/dracut.conf.d/10-asahi.conf
+    fi
 fi
 
-if [[ -e /usr/lib/dracut/modules.d ]]; then
-    cp -r resources/dracut-module /usr/lib/dracut/modules.d/99asahi-firmware
-    chmod a+x /usr/lib/dracut/modules.d/99asahi-firmware/*
-else
-    mkdir -p /usr/lib/dracut/modules.d
-    cp -r resources/dracut-module /usr/lib/dracut/modules.d/99asahi-firmware
-    chmod a+x /usr/lib/dracut/modules.d/99asahi-firmware/*
+if [[ ! -e /usr/lib/dracut/modules.d/99asahi-firmware ]]; then
+    if [[ -e /usr/lib/dracut/modules.d ]]; then
+        cp -r resources/dracut-module /usr/lib/dracut/modules.d/99asahi-firmware
+        chmod a+x /usr/lib/dracut/modules.d/99asahi-firmware/*
+    else
+        mkdir -p /usr/lib/dracut/modules.d
+        cp -r resources/dracut-module /usr/lib/dracut/modules.d/99asahi-firmware
+        chmod a+x /usr/lib/dracut/modules.d/99asahi-firmware/*
+    fi
 fi
 
 dracut --force \
     --quiet \
+    --no-hostonly \
     --kver $(uname -r) \
     --add-drivers "squashfs" \
     --add "dmsquash-live" \
@@ -113,7 +118,7 @@ dracut --force \
 echo "Setting up initramfs and GRUB..."
 
 mv bootstrap_image.img /boot/initramfs-gentoo-live.img
-cat resources/init_grub >> /boot/grub/grub.cfg
+cat resources/init_grub >> /boot/grub2/grub.cfg
 
 cleanup
 modprobe -r brd
